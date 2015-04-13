@@ -62,7 +62,6 @@ function authenticate(songURI) {
 
 //Extract the access token and user JSON object given the auth response
 function extractUserTokens(authJSON, songURI) {
-    alert(authJSON.access_token);
     $.ajax({
         url: 'https://api.spotify.com/v1/me',
         headers: {
