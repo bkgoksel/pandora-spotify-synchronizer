@@ -4,9 +4,10 @@
 	"name":"Pandora-Spotify Synchronizer",
 	"description": "Whenever you like a song on Pandora, this extension adds it to your Spotify starred playlist.",
 	"version": "1.0",
+	"key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAqYF2Mxlt/T9d53Au96jk6OzSMAa29HyuzBKyviM5uLwYSlUKsJqK3jmDXvVCjmxTMJNwGn2eTFwZYwy32RyTIvbQJSdZTw6XIaI2iRamvq9LAUEtiHC/ugG8c6sf+XfmaWGZwwhxQeaN6WwZAEI0gYmlnJEmG4wSkRd8ZN1+BVZrQIXqI8zdL8f75WQPs5kPRauC+q9sdX7rh+b38gbZj+ydj2UJewsJSsiouA7pjMP9AnYA802H9lTzEPlwkmTq1NGE4IVSac3fk7NNBuqePJfQT/yGKn0pMQ8oSSeh+fNi1R7BBJETNSUxALy6+bOUdJ+EWxwW928c30FB5ZrC7wIDAQAB",
 
 	"background": {
-		"scripts": ["jquery.min.js", "backgroung.js"],
+		"scripts": ["jquery.min.js", "background.js"],
 		"persistent": false
 	},
 
@@ -14,7 +15,8 @@
 		"activeTab",
 		"storage",
 		"identity",
-		"https://api.spotify.com/*"
+		"https://*.spotify.com/*",
+		"http://www.pandora.com/*"
 	],
 
 	"content_scripts": [
