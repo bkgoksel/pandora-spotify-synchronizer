@@ -13,7 +13,7 @@ chrome.runtime.onInstalled.addListener(function(details){
 chrome.extension.onMessage.addListener(function(request, sender, sendResponse) {
     switch(request.type) {
         case "song-liked":
-        getSpotifySongURI(request.data);
+        getSpotifySongURI(request.data, 3);
         break;
     }
     return true;
@@ -45,7 +45,7 @@ function authenticate() {
                 });
             },
             error: function(response) {
-                alert("Authentication failed!");
+                console.log("Authentication failed!");
             }
         })
     });
@@ -54,14 +54,13 @@ function authenticate() {
 //Extract the access token and user JSON object given the auth response
 function extractUserTokens() {
     chrome.storage.sync.get('accessToken', function(object) {
-        console.log("Access token read");
         $.ajax({
             url: 'https://api.spotify.com/v1/me',
             headers: {
                 'Authorization': 'Bearer ' + object.accessToken
             },
             success: function(user) {
-                chrome.storage.sync.set({'userId':user.id}, function() {
+                chrome.storage.sync.set({'userId': user.id}, function() {
                     console.log("User Id saved.");
                     getPlaylists('0');
                 });            
@@ -78,50 +77,95 @@ function getPlaylists(offset) {
     chrome.storage.sync.get(['userId', 'accessToken'], function(object) {
         $.ajax({
             url: 'https://api.spotify.com/v1/users/' + object.userId + '/playlists',
-            headers: {
-                'Authorization': 'Bearer ' + object.accessToken
-            },
+            headers: {'Authorization': 'Bearer ' + object.accessToken},
             data: {
                 'limit': '50',
                 'offset': offset
             },
             success: function(playlists) {
-                var playlistId = -1;    
-                playlists.items.forEach( function(playlist) {
-                    if (playlist.name === playlistName) {
-                        playlistId = playlist.id;
-                        console.log("Playlist found: " + playlist.name);
-                    }
-                });
-                if (playlistId === -1) {
-                    getPlaylists((playlists.offset + playlists.limit).toString());
+                if(playlists.items.length === 0) {
+                    createNewPlaylist(object);
                 } else {
-                    chrome.storage.sync.set({'playlistId': playlistId}, function() {
-                        console.log("Playlist Id saved.");
-                    });
+                    findPlaylist(playlists);
                 }
             },
             error: function(response) {
                 alert("Can't access playlists!");
             }
         });
-});
+    });
+}
+
+//Creates a new playlist called 'Liked from Pandora' for the user.
+function createNewPlaylist(object) {
+    var newPlaylistTemp = "{\"name\":\"Liked from Pandora\", \"public\":true}";
+    $.ajax({
+        method: 'POST',
+        url: 'https://api.spotify.com/v1/users/' + object.userId + '/playlists',
+        headers: {
+            'Authorization': 'Bearer ' + object.accessToken
+        },
+        contentType: 'application/json',
+        dataType: 'json',
+        data: newPlaylistTemp,
+        success: function(newPlaylist) {
+            chrome.storage.sync.set({'playlistId': newPlaylist.id}, function() {
+                alert("Extension couldn't find a playlist called 'Liked from Pandora' in your playlists, so a private playlist with that name was created for you!");
+                console.log("Playlist Id saved.");
+            })
+        },
+        error: function(response) {
+            alert("Playlist couldn't be created!");
+        }
+    })
+}
+
+//Keeps searching for a playlist with the given name from the users playlists.
+function findPlaylist(playlists) {
+    var playlistId = -1;    
+    playlists.items.some( function(playlist) {
+        if (playlist.name === playlistName) {
+            playlistId = playlist.id;
+            console.log("Playlist found: " + playlist.name);
+            return true;
+        }
+        return false;
+    });
+    if (playlistId === -1) {
+        getPlaylists((playlists.offset + playlists.limit).toString());
+    } else {
+        chrome.storage.sync.set({'playlistId': playlistId}, function() {
+            console.log("Playlist Id saved.");
+        });
+    }
 }
 
 //Search for the song on Spotify and find its Spotify URI if the song exists.
-function getSpotifySongURI(songData) {
+function getSpotifySongURI(songData, searchLevel) {
+    if(searchLevel === 0) {
+        alert("Song not found on Spotify!");
+        return;
+    }
+    var searchURL = "https://api.spotify.com/v1/search?query=track:" + encodeURIComponent(songData.songName);
+    if (searchLevel > 1) {
+        searchURL += "+artist:" + encodeURIComponent(songData.artistName);
+        if(searchLevel > 2) {
+            searchURL += "+album:" + encodeURIComponent(songData.albumName);
+        }
+    }
+    searchURL += "&type=track";
     $.ajax({
-        url: "https://api.spotify.com/v1/search?query=track:" + encodeURIComponent(songData.songName) + "+album:" + encodeURIComponent(songData.albumName) + "+artist:" + encodeURIComponent(songData.artistName) + "&type=track",
+        url: searchURL,
         success: function(songSearchResultJSON) {
             if (songSearchResultJSON.tracks.items.length < 1) {
-                alert("Song not found on Spotify!");
+                getSpotifySongURI(songData, searchLevel - 1);
             } else {
                 var songURI = songSearchResultJSON.tracks.items[0].uri;
                 addTrack(songURI);
             }
         },
         error: function(data) {
-            alert("Song not found on Spotify");
+            alert("Bad song request!");
         }
     })
 }
@@ -135,7 +179,7 @@ function addTrack(songURI) {
                 'Authorization': 'Bearer ' + object.accessToken,
             },
             success: function(response) {
-                alert('Song added to playlist successfully!');
+                console.log('Song added to playlist successfully!');
             },
             error: function(response) {
                 alert("Song couldn't be added successfully!");
